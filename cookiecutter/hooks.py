@@ -25,7 +25,8 @@ EXIT_SUCCESS = 0
 
 
 def valid_hook(hook_file, hook_name):
-    """Determine if a hook file is valid.
+    """Determine if a hook file is valid. hook_name must be a substring of elements
+    in _HOOKS variable to be valid.
 
     :param hook_file: The hook file to consider for validity
     :param hook_name: The hook to find
@@ -33,11 +34,11 @@ def valid_hook(hook_file, hook_name):
     """
     filename = os.path.basename(hook_file)
     basename = os.path.splitext(filename)[0]
-    matching_hook = basename == hook_name
-    supported_hook = basename in _HOOKS
+    matching_hook = hook_name in basename
+    supported_hook = [i for i in _HOOKS if i in basename]
     backup_file = filename.endswith('~')
 
-    return matching_hook and supported_hook and not backup_file
+    return matching_hook and bool(supported_hook) and not backup_file
 
 
 def find_hook(hook_name, hooks_dir='hooks'):
@@ -59,10 +60,9 @@ def find_hook(hook_name, hooks_dir='hooks'):
         return None
 
     scripts = []
-    for hook_file in os.listdir(hooks_dir):
+    for hook_file in sorted(os.listdir(hooks_dir)):
         if valid_hook(hook_file, hook_name):
             scripts.append(os.path.abspath(os.path.join(hooks_dir, hook_file)))
-
     if len(scripts) == 0:
         return None
     return scripts
@@ -83,7 +83,8 @@ def run_script(script_path, cwd='.'):
     utils.make_executable(script_path)
 
     try:
-        proc = subprocess.Popen(script_command, shell=run_thru_shell, cwd=cwd)  # nosec
+        proc = subprocess.Popen(
+            script_command, shell=run_thru_shell, cwd=cwd)  # nosec
         exit_status = proc.wait()
         if exit_status != EXIT_SUCCESS:
             raise FailedHookException(
@@ -94,7 +95,8 @@ def run_script(script_path, cwd='.'):
             raise FailedHookException(
                 'Hook script failed, might be an empty file or missing a shebang'
             ) from err
-        raise FailedHookException(f'Hook script failed (error: {err})') from err
+        raise FailedHookException(
+            f'Hook script failed (error: {err})') from err
 
 
 def run_script_with_context(script_path, cwd, context):
